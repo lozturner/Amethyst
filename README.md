@@ -92,6 +92,24 @@ If you'd like to contribute please branch off of the `development` branch and op
 $ ./bin/setup.sh
 ```
 
+ChatGPT conversation export helper
+==================================
+
+If you have a ChatGPT `conversations.json` export that you want to convert into a blog post for WordPress, you can use the helper script in `bin/conversation_to_wordpress.py`:
+
+```bash
+# Write HTML to stdout
+python bin/conversation_to_wordpress.py /path/to/conversation.json
+
+# Specify a post title and save the HTML to a file
+python bin/conversation_to_wordpress.py /path/to/conversation.json --title "My ChatGPT Session" --output post.html
+
+# Read directly from a zipped export (attachments extracted to ./conversation_assets)
+python bin/conversation_to_wordpress.py /path/to/conversation.zip --output post.html
+```
+
+The script supports both legacy `mapping`-based exports and the newer `messages` array format, producing HTML that can be pasted directly into the WordPress block editor. When pointed at a zipped export, non-JSON files are extracted into a sibling `<export_name>_assets` directory and linked in the generated HTML. Message timestamps are also rendered so you can keep publication context.
+
 Contact
 =======
 
