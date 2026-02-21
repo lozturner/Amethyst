@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deadline Readiness Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1020;
+      --panel: #151d35;
+      --card: #1d2746;
+      --text: #f4f7ff;
+      --muted: #aeb8d6;
+      --accent: #59d6ff;
+      --good: #43e08c;
+      --warn: #ffc44d;
+      --danger: #ff7070;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(155deg, #090e1d 0%, var(--bg) 40%, #121b39 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.25rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .hero,
+    .card {
+      background: rgba(21, 29, 53, 0.9);
+      border: 1px solid rgba(137, 165, 236, 0.2);
+      border-radius: 14px;
+      padding: 1rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(3px);
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+
+    .subtle {
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .count-box {
+      border-radius: 12px;
+      background: var(--card);
+      padding: 0.8rem;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .count-box .label { color: var(--muted); font-size: 0.8rem; }
+    .count-box .value { font-size: clamp(1.4rem, 3.4vw, 2.2rem); font-weight: 700; }
+
+    .card.timeline { grid-column: span 7; }
+    .card.metrics { grid-column: span 5; }
+    .card.calendar { grid-column: 1 / -1; }
+
+    @media (max-width: 900px) {
+      .card.timeline,
+      .card.metrics { grid-column: 1 / -1; }
+    }
+
+    .timeline-track {
+      margin-top: 0.75rem;
+      padding: 1rem;
+      background: #101a34;
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timeline-bar {
+      height: 24px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--good), var(--warn), var(--danger));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timeline-fill {
+      height: 100%;
+      width: 0%;
+      background: rgba(255, 255, 255, 0.72);
+      mix-blend-mode: overlay;
+      transition: width 900ms ease;
+      animation: pulse 2.2s ease-in-out infinite;
+      transform-origin: left;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.85; }
+    }
+
+    .timeline-labels {
+      margin-top: 0.35rem;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .metric-row { margin-top: 0.8rem; }
+    .metric-title {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.87rem;
+      margin-bottom: 0.28rem;
+    }
+
+    .metric-track {
+      height: 12px;
+      border-radius: 999px;
+      background: #0f1730;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+
+    .metric-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      transition: width 900ms ease;
+      background: linear-gradient(90deg, #4cc9ff, #4cf6b4);
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0.4rem;
+    }
+
+    .dow, .day {
+      border-radius: 8px;
+      text-align: center;
+      padding: 0.45rem;
+    }
+
+    .dow {
+      color: var(--muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .day {
+      min-height: 56px;
+      background: #131d38;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: grid;
+      place-content: center;
+      font-weight: 600;
+    }
+
+    .day.today { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(89, 214, 255, 0.25); }
+    .day.deadline { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(255, 112, 112, 0.25); background: #2b1b2c; }
+    .day.muted { opacity: 0.35; }
+
+    .status {
+      margin-top: 0.7rem;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      font-size: 0.86rem;
+    }
+
+    .dot {
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.35rem;
+      vertical-align: baseline;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero" aria-label="Deadline summary">
+      <h1>Call Centre Deadline Dashboard</h1>
+      <p class="subtle">Clear, high-contrast visuals for teams and neurodivergent coworkers. The timeline starts now and ends Monday at <strong>09:00</strong>.</p>
+      <div class="grid-3" id="countdown" aria-live="polite"></div>
+      <p class="status" id="statusText"></p>
+    </section>
+
+    <section class="card timeline" aria-label="Progress timeline">
+      <h2>Timeline: Saturday 12:00 → Monday 09:00</h2>
+      <p class="subtle">Shows elapsed time and remaining time as a single continuous bar.</p>
+      <div class="timeline-track">
+        <div class="timeline-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="timeBar">
+          <div class="timeline-fill" id="timeFill"></div>
+        </div>
+        <div class="timeline-labels">
+          <span id="startLabel"></span>
+          <span id="nowLabel"></span>
+          <span id="deadlineLabel"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card metrics" aria-label="Statistical readiness bars">
+      <h2>Readiness Statistics</h2>
+      <p class="subtle">Simple bar indicators to support quick call-centre decisions.</p>
+      <div id="metricBars"></div>
+      <div class="legend">
+        <span><i class="dot" style="background: var(--good)"></i>On track</span>
+        <span><i class="dot" style="background: var(--warn)"></i>Needs focus</span>
+        <span><i class="dot" style="background: var(--danger)"></i>Critical</span>
+      </div>
+    </section>
+
+    <section class="card calendar" aria-label="Gregorian calendar month view">
+      <div class="calendar-header">
+        <h2 id="calendarTitle">Gregorian Calendar</h2>
+        <p class="subtle">Today and deadline are highlighted for fast orientation.</p>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+  </main>
+
+  <script>
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    function getDeadlineFromNow(now) {
+      const deadline = new Date(now);
+      const day = now.getDay(); // 0 Sun ... 6 Sat
+      const daysUntilMonday = (8 - day) % 7 || 7;
+      deadline.setDate(now.getDate() + daysUntilMonday);
+      deadline.setHours(9, 0, 0, 0);
+      return deadline;
+    }
+
+    function formatShort(date) {
+      return date.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function countdownParts(ms) {
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      const seconds = totalSec % 60;
+      return { days, hours, minutes, seconds };
+    }
+
+    function renderCalendar(now, deadline) {
+      const grid = document.getElementById("calendarGrid");
+      grid.innerHTML = "";
+
+      dayNames.forEach((name) => {
+        const el = document.createElement("div");
+        el.className = "dow";
+        el.textContent = name;
+        grid.appendChild(el);
+      });
+
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+
+      document.getElementById("calendarTitle").textContent = now.toLocaleString(undefined, {
+        month: "long",
+        year: "numeric"
+      }) + " (Gregorian)";
+
+      for (let i = 0; i < first.getDay(); i++) {
+        const blank = document.createElement("div");
+        blank.className = "day muted";
+        blank.textContent = "";
+        grid.appendChild(blank);
+      }
+
+      for (let d = 1; d <= last.getDate(); d++) {
+        const date = new Date(year, month, d);
+        const cell = document.createElement("div");
+        cell.className = "day";
+        cell.textContent = d;
+
+        if (date.toDateString() === now.toDateString()) cell.classList.add("today");
+        if (date.toDateString() === deadline.toDateString()) cell.classList.add("deadline");
+
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderMetrics(progress, remainingPct) {
+      const metrics = [
+        { label: "Time elapsed", value: progress, goal: "100% by deadline" },
+        { label: "Time remaining", value: remainingPct, goal: "Allocate wisely" },
+        { label: "Schedule confidence", value: Math.max(0, 100 - (remainingPct * 0.75)), goal: "Target > 70%" },
+      ];
+
+      const wrapper = document.getElementById("metricBars");
+      wrapper.innerHTML = "";
+
+      metrics.forEach((metric) => {
+        const value = Math.max(0, Math.min(100, Number(metric.value.toFixed(1))));
+        const row = document.createElement("div");
+        row.className = "metric-row";
+
+        const title = document.createElement("div");
+        title.className = "metric-title";
+        title.innerHTML = `<span>${metric.label}</span><span>${value}%</span>`;
+
+        const track = document.createElement("div");
+        track.className = "metric-track";
+
+        const fill = document.createElement("div");
+        fill.className = "metric-fill";
+        if (value < 35) fill.style.background = "linear-gradient(90deg,#ff6666,#ff9770)";
+        else if (value < 70) fill.style.background = "linear-gradient(90deg,#ffd166,#f8e16c)";
+        fill.style.width = `${value}%`;
+
+        track.appendChild(fill);
+        row.append(title, track);
+        wrapper.appendChild(row);
+      });
+    }
+
+    function tick() {
+      const now = new Date();
+      const start = new Date(now);
+      start.setDate(now.getDate() - ((now.getDay() + 1) % 7));
+      start.setHours(12, 0, 0, 0);
+
+      const deadline = getDeadlineFromNow(now);
+
+      document.getElementById("startLabel").textContent = formatShort(start);
+      document.getElementById("nowLabel").textContent = "Now: " + formatShort(now);
+      document.getElementById("deadlineLabel").textContent = formatShort(deadline);
+
+      const total = deadline - start;
+      const elapsed = now - start;
+      const progress = Math.max(0, Math.min(100, (elapsed / total) * 100));
+      const remainingMs = deadline - now;
+      const remainingPct = Math.max(0, Math.min(100, (remainingMs / total) * 100));
+
+      const fill = document.getElementById("timeFill");
+      fill.style.width = `${progress}%`;
+
+      const timeBar = document.getElementById("timeBar");
+      timeBar.setAttribute("aria-valuenow", progress.toFixed(1));
+
+      const countdown = countdownParts(remainingMs);
+      const countGrid = document.getElementById("countdown");
+      countGrid.innerHTML = [
+        ["Days", countdown.days],
+        ["Hours", countdown.hours],
+        ["Minutes", countdown.minutes],
+        ["Seconds", countdown.seconds]
+      ].map(([label, value]) => `
+        <div class="count-box">
+          <div class="label">${label}</div>
+          <div class="value">${String(value).padStart(2, "0")}</div>
+        </div>
+      `).join("");
+
+      const status = document.getElementById("statusText");
+      if (remainingMs <= 0) {
+        status.textContent = "Deadline reached. Start Monday 09:00 workflow now.";
+        status.style.color = "var(--danger)";
+      } else if (remainingMs <= 4 * 60 * 60 * 1000) {
+        status.textContent = "Critical window: less than 4 hours remaining.";
+        status.style.color = "var(--warn)";
+      } else {
+        status.textContent = "Current status: on schedule with active countdown.";
+        status.style.color = "var(--good)";
+      }
+
+      renderMetrics(progress, remainingPct);
+      renderCalendar(now, deadline);
+    }
+
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
