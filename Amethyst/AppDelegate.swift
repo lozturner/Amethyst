@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     fileprivate var windowManager: WindowManager?
     private var hotKeyManager: HotKeyManager?
     private var remoteControlServer: RemoteControlServer?
+    private var screenShareServer: ScreenShareServer?
 
     fileprivate var statusItem: NSStatusItem?
     @IBOutlet var statusItemMenu: NSMenu?
@@ -81,6 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         remoteControlServer = RemoteControlServer(windowManager: windowManager!, userConfiguration: UserConfiguration.shared)
         remoteControlServer?.start()
+
+        screenShareServer = ScreenShareServer(windowManager: windowManager!, userConfiguration: UserConfiguration.shared)
+        screenShareServer?.start()
     }
 
     override func awakeFromNib() {
