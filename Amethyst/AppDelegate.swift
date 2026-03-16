@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     fileprivate var windowManager: WindowManager?
     private var hotKeyManager: HotKeyManager?
+    private var remoteControlServer: RemoteControlServer?
 
     fileprivate var statusItem: NSStatusItem?
     @IBOutlet var statusItemMenu: NSMenu?
@@ -77,6 +78,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyManager = HotKeyManager(userConfiguration: UserConfiguration.shared)
 
         hotKeyManager?.setUpWithWindowManager(windowManager!, configuration: UserConfiguration.shared)
+
+        remoteControlServer = RemoteControlServer(windowManager: windowManager!, userConfiguration: UserConfiguration.shared)
+        remoteControlServer?.start()
     }
 
     override func awakeFromNib() {
