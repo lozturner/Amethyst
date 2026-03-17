@@ -189,11 +189,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f.write(json.dumps(msg) + "\n")
     logger.info("INBOX <- @%s: %s", user.username, text)
 
-    # Instant reply — the bot is connected, prove it
-    await update.message.reply_text(
-        f"Received: \"{text}\"\n\n"
-        "Message logged. Brain is listening."
-    )
+    # No instant reply — the AI brain will respond via the outbox relay
 
 
 # ---------------------------------------------------------------------------
