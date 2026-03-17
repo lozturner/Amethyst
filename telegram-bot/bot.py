@@ -52,7 +52,7 @@ from telegram.ext import (
 # that gets registered as a handler. The bot doesn't need to know
 # the internals, just how to plug them in.
 from skills.getit import create_handler as getit_handler
-from skills.updater import create_handlers as updater_handlers
+from skills.updater import create_handlers as updater_handlers, check_deploy_receipt, format_announcement
 
 # Load the .env file so we can read TELEGRAM_BOT_TOKEN
 # without hardcoding secrets into the source code.
@@ -204,6 +204,28 @@ def main() -> None:
     app.add_handler(CommandHandler("info", info))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
+
+    # Check if we just rebooted after a /deploy.
+    # If so, there's a deploy receipt waiting — read it now and
+    # schedule the announcement to be sent once polling starts.
+    deploy_receipt = check_deploy_receipt()
+
+    async def post_init(application) -> None:
+        """
+        Runs right after the bot connects to Telegram.
+        If we have a deploy receipt, send the announcement to the chat
+        that triggered the deploy. This is the "I'm back!" moment.
+        """
+        if deploy_receipt:
+            chat_id = deploy_receipt["chat_id"]
+            message = format_announcement(deploy_receipt)
+            try:
+                await application.bot.send_message(chat_id=chat_id, text=message)
+                logger.info("Sent deploy announcement to chat %s", chat_id)
+            except Exception as e:
+                logger.error("Failed to send deploy announcement: %s", e)
+
+    app.post_init = post_init
 
     # Start polling — the bot connects to Telegram and says
     # "give me any new messages" every few seconds. It runs forever

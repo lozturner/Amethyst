@@ -72,6 +72,11 @@ VERSION_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "version
 # Reboot flag — the launcher script watches for this file
 REBOOT_FLAG = "/tmp/tg_reboot_flag"
 
+# Deploy receipt — written before reboot so the bot can announce
+# the new version when it comes back online. Contains JSON with
+# the chat_id to message, the new version, and the change list.
+DEPLOY_RECEIPT = "/tmp/tg_deploy_receipt.json"
+
 # Admin user IDs — only these users can deploy updates.
 # Set to empty list to allow anyone (development mode).
 # Find your user ID with /info command.
@@ -270,11 +275,22 @@ async def deploy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Format confirmation message
     change_list = "\n".join(f"  - {c}" for c in staged)
     await update.message.reply_text(
-        f"DEPLOYED v{new_version}\n"
+        f"Deploying v{new_version}...\n"
         f"(was v{old_version}, {bump_type} bump)\n\n"
-        f"Changes:\n{change_list}\n\n"
-        "Rebooting now..."
+        "Rebooting now — I'll be right back with the full announcement."
     )
+
+    # Write the deploy receipt — when the bot restarts, it reads this
+    # and sends a proper announcement to the chat with what's new.
+    receipt = {
+        "chat_id": update.effective_chat.id,
+        "old_version": old_version,
+        "new_version": new_version,
+        "bump_type": bump_type,
+        "changes": staged,
+    }
+    with open(DEPLOY_RECEIPT, "w") as f:
+        json.dump(receipt, f)
 
     # Write the reboot flag — the launcher script picks this up
     # and restarts the bot process
@@ -303,6 +319,50 @@ async def cancel_update_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # Handler registration
 # Returns a list of handlers for bot.py to register.
 # ---------------------------------------------------------------------------
+
+def check_deploy_receipt():
+    """
+    Called once at bot startup. If a deploy receipt exists, it means
+    we just rebooted after a /deploy. Returns the receipt dict so
+    bot.py can send the announcement, or None if there's no receipt.
+
+    The receipt file is deleted after reading — one-time use.
+    """
+    if not os.path.exists(DEPLOY_RECEIPT):
+        return None
+    try:
+        with open(DEPLOY_RECEIPT, "r") as f:
+            receipt = json.load(f)
+        os.remove(DEPLOY_RECEIPT)
+        return receipt
+    except Exception:
+        return None
+
+
+def format_announcement(receipt: dict) -> str:
+    """
+    Build the post-reboot announcement message.
+    This is what the user sees in chat when the bot comes back online
+    after a /deploy. It should feel like good news arriving — friendly,
+    clear, and showing exactly what's new and how to use it.
+    """
+    v = receipt["new_version"]
+    old = receipt["old_version"]
+    changes = receipt["changes"]
+
+    change_list = "\n".join(f"  \u2022 {c}" for c in changes)
+
+    return (
+        f"\U0001f389 Back online! New version installed.\n\n"
+        f"\U0001f4E6 v{old} \u2192 v{v}\n\n"
+        f"What's new:\n{change_list}\n\n"
+        f"This is live right now. Here's what you can do:\n"
+        f"  /version  \u2014 see the full changelog\n"
+        f"  /help     \u2014 see all available commands\n"
+        f"  /getit    \u2014 start the problem-solving flow\n\n"
+        f"If anything looks off, type /version to check."
+    )
+
 
 def create_handlers() -> list:
     """
