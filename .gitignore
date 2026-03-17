@@ -21,3 +21,6 @@ crashlytics_api_key
 crashlytics_app_key
 Carthage
 AMKeys.h
+
+# Telegram bot
+telegram-bot/.env
