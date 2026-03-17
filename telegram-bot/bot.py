@@ -52,6 +52,7 @@ from telegram.ext import (
 # that gets registered as a handler. The bot doesn't need to know
 # the internals, just how to plug them in.
 from skills.getit import create_handler as getit_handler
+from skills.updater import create_handlers as updater_handlers
 
 # Load the .env file so we can read TELEGRAM_BOT_TOKEN
 # without hardcoding secrets into the source code.
@@ -86,7 +87,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/help   - List available commands\n"
         "/echo <text> - I'll repeat what you say\n"
         "/info   - Show info about this chat\n"
-        "/getit  - Problem solver: bridge what you need with what you know\n"
+        "/getit  - Problem solver: bridge what you need with what you know\n\n"
+        "Update system:\n"
+        "/version - Current version + changelog\n"
+        "/update <note> - Stage a change\n"
+        "/changes - View staged changes\n"
+        "/deploy  - Ship it: bump version, log, reboot\n"
     )
 
 
@@ -102,6 +108,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/echo <text> - Echo your message back\n"
         "/info   - Chat and user info\n"
         "/getit  - Problem solver: bridge what you need with what you know\n\n"
+        "Update system:\n"
+        "/version - Current version + changelog\n"
+        "/update <note> - Stage a change\n"
+        "/changes - View staged changes\n"
+        "/deploy  - Ship it: bump version, log, reboot\n\n"
         "You can also just send me any message and I'll reply!"
     )
 
@@ -185,6 +196,8 @@ def main() -> None:
 
     # Register handlers — order matters!
     app.add_handler(getit_handler())  # /getit skill — must be before generic handler
+    for h in updater_handlers():      # /version, /update, /deploy, /changes, /cancel_update
+        app.add_handler(h)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("echo", echo))

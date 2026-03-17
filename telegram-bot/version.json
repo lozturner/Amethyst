@@ -1,0 +1,15 @@
+{
+    "version": "1.0.0",
+    "changelog": [
+        {
+            "version": "1.0.0",
+            "date": "2026-03-17",
+            "changes": [
+                "Initial release",
+                "Core bot with /start, /help, /echo, /info",
+                "Relay mode for AI brain connection",
+                "/getit skill — problem-solving conversation flow"
+            ]
+        }
+    ]
+}
