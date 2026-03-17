@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a welcome message when /start is issued."""
     user = update.effective_user
+    logger.info("Command /start from %s (@%s)", user.first_name, user.username)
     await update.message.reply_text(
         f"Hi {user.first_name}! I'm your Telegram bot.\n\n"
         "Commands:\n"
@@ -88,7 +89,9 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reply to any non-command text message."""
+    user = update.effective_user
     text = update.message.text
+    logger.info("Message from %s (@%s): %s", user.first_name, user.username, text)
     await update.message.reply_text(f"You said: {text}")
 
 
