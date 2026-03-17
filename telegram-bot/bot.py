@@ -190,21 +190,6 @@ def main() -> None:
             "Copy .env.example to .env and add your token."
         )
 
-    # Build the application — this is the python-telegram-bot framework
-    # doing the heavy lifting. It handles polling, parsing, routing.
-    app = ApplicationBuilder().token(token).build()
-
-    # Register handlers — order matters!
-    app.add_handler(getit_handler())  # /getit skill — must be before generic handler
-    for h in updater_handlers():      # /version, /update, /deploy, /changes, /cancel_update
-        app.add_handler(h)
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("echo", echo))
-    app.add_handler(CommandHandler("info", info))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_error_handler(error_handler)
-
     # Check if we just rebooted after a /deploy.
     # If so, there's a deploy receipt waiting — read it now and
     # schedule the announcement to be sent once polling starts.
@@ -225,7 +210,22 @@ def main() -> None:
             except Exception as e:
                 logger.error("Failed to send deploy announcement: %s", e)
 
-    app.post_init = post_init
+    # Build the application — this is the python-telegram-bot framework
+    # doing the heavy lifting. It handles polling, parsing, routing.
+    # post_init is wired in here so the deploy announcement fires
+    # right after the bot connects to Telegram.
+    app = ApplicationBuilder().token(token).post_init(post_init).build()
+
+    # Register handlers — order matters!
+    app.add_handler(getit_handler())  # /getit skill — must be before generic handler
+    for h in updater_handlers():      # /version, /update, /deploy, /changes, /cancel_update
+        app.add_handler(h)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("echo", echo))
+    app.add_handler(CommandHandler("info", info))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_error_handler(error_handler)
 
     # Start polling — the bot connects to Telegram and says
     # "give me any new messages" every few seconds. It runs forever
