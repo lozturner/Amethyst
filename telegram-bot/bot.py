@@ -1,19 +1,21 @@
 """
-Telegram Chatbot — The Core Bot
-================================
+Telegram Chatbot — The Core Bot + AI Relay
+============================================
 
-Setup:
-    1. Open Telegram, search for @BotFather, type /newbot
-    2. Follow the prompts — give your bot a name and username
-    3. BotFather gives you a token like 123456:ABC-DEF...
-    4. Copy .env.example to .env -> paste the token there
-    5. pip install -r requirements.txt
-    6. python bot.py
+Commands are handled directly. Plain text messages get relayed to the AI
+brain via inbox/outbox files. Any process (Claude, a script, anything)
+can read the inbox and write replies to the outbox.
+
+Inbox:  /tmp/tg_inbox.jsonl   (bot writes, brain reads)
+Outbox: /tmp/tg_outbox.jsonl  (brain writes, bot sends)
 """
 
 import json
 import logging
 import os
+import time
+import threading
+import requests
 from dotenv import load_dotenv
 from telegram import Update, BotCommand
 from telegram.ext import (
@@ -34,6 +36,17 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Relay files — the mailbox between the bot and the AI brain
+# ---------------------------------------------------------------------------
+
+INBOX = "/tmp/tg_inbox.jsonl"
+OUTBOX = "/tmp/tg_outbox.jsonl"
+
+# Make sure files exist
+for _f in [INBOX, OUTBOX]:
+    open(_f, "a").close()
 
 # ---------------------------------------------------------------------------
 # Owner tracking
@@ -72,6 +85,37 @@ def _remember_owner(update: Update):
 
 
 # ---------------------------------------------------------------------------
+# Outbox sender — background thread that watches for AI replies
+# ---------------------------------------------------------------------------
+
+def outbox_sender(token: str):
+    """Watch /tmp/tg_outbox.jsonl for new lines and send them via Telegram."""
+    last_pos = os.path.getsize(OUTBOX) if os.path.exists(OUTBOX) else 0
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    while True:
+        time.sleep(1)
+        try:
+            with open(OUTBOX, "r") as f:
+                f.seek(last_pos)
+                lines = f.readlines()
+                last_pos = f.tell()
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                data = json.loads(line)
+                resp = requests.post(url, json={
+                    "chat_id": data["chat_id"],
+                    "text": data["text"],
+                })
+                logger.info("OUTBOX -> chat %s [%s]: %s",
+                            data["chat_id"], resp.status_code, data["text"][:80])
+        except Exception as e:
+            logger.error("Outbox error: %s", e)
+
+
+# ---------------------------------------------------------------------------
 # Command handlers
 # ---------------------------------------------------------------------------
 
@@ -86,7 +130,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/info - Your user + chat info\n"
         "/getit - Problem solver\n"
         "/version - Current version\n\n"
-        "Send me a message anytime."
+        "Send me any message and I'll pass it to the brain."
     )
 
 
@@ -103,7 +147,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/version - Current version + changelog\n"
         "/update <note> - Stage a change\n"
         "/changes - View staged changes\n"
-        "/deploy - Ship it\n"
+        "/deploy - Ship it\n\n"
+        "Any plain text goes straight to the AI brain."
     )
 
 
@@ -121,7 +166,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Default message handler — no echo, just acknowledge
+# Default message handler — relay to AI brain via inbox
 # ---------------------------------------------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -130,9 +175,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text
     logger.info("Message from %s (@%s, chat_id=%s): %s",
                 user.first_name, user.username, update.effective_chat.id, text)
-    await update.message.reply_text(
-        "Got it. Use /help to see what I can do."
-    )
+
+    # Write to inbox for the AI brain to pick up
+    msg = {
+        "chat_id": update.effective_chat.id,
+        "user": user.first_name or "",
+        "username": user.username or "",
+        "text": text,
+        "ts": time.time(),
+    }
+    with open(INBOX, "a") as f:
+        f.write(json.dumps(msg) + "\n")
+    logger.info("INBOX <- @%s: %s", user.username, text)
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +208,11 @@ def main() -> None:
             "TELEGRAM_BOT_TOKEN not set. "
             "Copy .env.example to .env and add your token."
         )
+
+    # Start outbox sender thread — watches for AI replies
+    t = threading.Thread(target=outbox_sender, args=(token,), daemon=True)
+    t.start()
+    logger.info("Outbox sender started (watching %s)", OUTBOX)
 
     deploy_receipt = check_deploy_receipt()
     owner = load_owner()
