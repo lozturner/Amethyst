@@ -166,19 +166,20 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Default message handler — relay to AI brain via inbox
+# Default message handler — relay to AI brain + instant reply
 # ---------------------------------------------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _remember_owner(update)
     user = update.effective_user
     text = update.message.text
+    chat_id = update.effective_chat.id
     logger.info("Message from %s (@%s, chat_id=%s): %s",
-                user.first_name, user.username, update.effective_chat.id, text)
+                user.first_name, user.username, chat_id, text)
 
-    # Write to inbox for the AI brain to pick up
+    # Write to inbox for any external AI brain to pick up
     msg = {
-        "chat_id": update.effective_chat.id,
+        "chat_id": chat_id,
         "user": user.first_name or "",
         "username": user.username or "",
         "text": text,
@@ -187,6 +188,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     with open(INBOX, "a") as f:
         f.write(json.dumps(msg) + "\n")
     logger.info("INBOX <- @%s: %s", user.username, text)
+
+    # Instant reply — the bot is connected, prove it
+    await update.message.reply_text(
+        f"Received: \"{text}\"\n\n"
+        "Message logged. Brain is listening."
+    )
 
 
 # ---------------------------------------------------------------------------
