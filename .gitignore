@@ -26,3 +26,5 @@ AMKeys.h
 telegram-bot/.env
 __pycache__/
 *.pyc
+telegram-bot/owner.json
+telegram-bot/settings.json
