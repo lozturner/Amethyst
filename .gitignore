@@ -24,3 +24,5 @@ AMKeys.h
 
 # Telegram bot
 telegram-bot/.env
+__pycache__/
+*.pyc
