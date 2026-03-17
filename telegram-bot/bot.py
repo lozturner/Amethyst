@@ -231,7 +231,10 @@ def main() -> None:
     # "give me any new messages" every few seconds. It runs forever
     # until you hit Ctrl+C or kill the process.
     logger.info("Bot is starting...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+    )
 
 
 if __name__ == "__main__":
